@@ -39,7 +39,7 @@ func ShowUsage(output io.Writer) {
 }
 
 func ShowVersion(output io.Writer) {
-	fmt.Fprintln(output, "v1.0.0")
+	fmt.Fprintln(output, "v1.0.1")
 }
 
 const maxLineCount = 1
