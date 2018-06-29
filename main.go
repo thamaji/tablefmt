@@ -22,15 +22,19 @@ func ShowUsage(output io.Writer) {
 	fmt.Fprintln(output, "Format table data")
 	fmt.Fprintln(output)
 	fmt.Fprintln(output, "Options:")
-	fmt.Fprintln(output, "  -cN FORMAT")
-	fmt.Fprintln(output, "    format the column N as C printf")
-	fmt.Fprintln(output, "  -t TYPE")
+	fmt.Fprintln(output, "  -fN-M, --fieldsN-M FORMAT")
+	fmt.Fprintln(output, "    format the fields as C printf")
+	fmt.Fprintln(output, "      N    N'th field, counted from 1")
+	fmt.Fprintln(output, "      N-   from N'th field to end of record")
+	fmt.Fprintln(output, "      N-M  from N'th to M'th (included) field")
+	fmt.Fprintln(output, "      -M   from first to M'th (included) field")
+	fmt.Fprintln(output, "  -t, --type TYPE")
 	fmt.Fprintln(output, "    set input table type (csv, tsv, auto)")
-	fmt.Fprintln(output, "  -i")
+	fmt.Fprintln(output, "  -i, --inplace")
 	fmt.Fprintln(output, "    edit files in place")
-	fmt.Fprintln(output, "  -v")
+	fmt.Fprintln(output, "  -v, --version")
 	fmt.Fprintln(output, "    output version infomation and exit")
-	fmt.Fprintln(output, "  -h")
+	fmt.Fprintln(output, "  -h, --help")
 	fmt.Fprintln(output, "    display this help and exit")
 }
 
@@ -195,22 +199,22 @@ func main() {
 			continue
 		}
 
-		if arg == "-v" {
+		if arg == "-v" || arg == "--version" {
 			version = true
 			continue
 		}
 
-		if arg == "-h" {
+		if arg == "-h" || arg == "--help" {
 			help = true
 			continue
 		}
 
-		if arg == "-i" {
+		if arg == "-i" || arg == "--inplace" {
 			inplace = true
 			continue
 		}
 
-		if arg == "-t" {
+		if arg == "-t" || arg == "--type" {
 			if i+1 < len(args) {
 				i++
 				tableType = args[i]
@@ -218,15 +222,61 @@ func main() {
 			continue
 		}
 
-		if prefix := arg[:len(arg)-1]; prefix == "-c" {
-			column, err := strconv.Atoi(arg[len(prefix):])
-			if err != nil {
-				continue
+		idx := -1
+		if strings.HasPrefix(arg, "-f") {
+			idx = len("-f")
+		}
+		if strings.HasPrefix(arg, "--fields") {
+			idx = len("--fields")
+		}
+		if idx >= 0 {
+			numbers := strings.Split(arg[idx:], "-")
+			if len(numbers) > 2 {
+				fmt.Fprintln(os.Stderr, "unknown option: "+arg)
+				ShowUsage(os.Stderr)
+				os.Exit(1)
+			}
+
+			start := 0
+			if numbers[0] != "" {
+				start, err = strconv.Atoi(numbers[0])
+				if err != nil {
+					fmt.Fprintln(os.Stderr, "unknown option: "+arg)
+					ShowUsage(os.Stderr)
+					os.Exit(1)
+				}
+			}
+
+			end := start
+			if len(numbers) >= 2 {
+				if numbers[1] == "" {
+					if numbers[0] == "" {
+						fmt.Fprintln(os.Stderr, "unknown option: "+arg)
+						ShowUsage(os.Stderr)
+						os.Exit(1)
+					}
+
+					end = 65535
+
+				} else {
+					end, err = strconv.Atoi(numbers[1])
+					if err != nil {
+						fmt.Fprintln(os.Stderr, "unknown option: "+arg)
+						ShowUsage(os.Stderr)
+						os.Exit(1)
+					}
+				}
+
+				if start > end {
+					start, end = end, start
+				}
 			}
 
 			if i+1 < len(args) {
 				i++
-				columns[column] = args[i]
+				for j := start; j <= end; j++ {
+					columns[j-1] = args[i]
+				}
 			}
 			continue
 		}
